@@ -1,10 +1,9 @@
 [project]
-name = "dailycheckin"
+name = "daily_checkin"
 version = "25.12.9"
 dependencies = [
     "pycryptodome==3.17",
     "requests~=2.25.1",
-    "rsa~=4.0",
     "urllib3~=1.26.2",
 ]
 dynamic = ["readme","requires-python","license","authors","classifiers","urls","scripts"]

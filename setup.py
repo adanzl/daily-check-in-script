@@ -2,9 +2,9 @@ import os
 
 from setuptools import find_packages, setup
 
-NAME = "dailycheckin"
-FOLDER = "dailycheckin"
-DESCRIPTION = "dailycheckin"
+NAME = "daily_checkin"
+FOLDER = "daily_checkin"
+DESCRIPTION = "daily_checkin"
 EMAIL = "133397418@qq.com"
 AUTHOR = "Sitoi"
 REQUIRES_PYTHON = ">=3.9.0"
@@ -66,7 +66,7 @@ setup(
     include_package_data=True,
     license="MIT",
     zip_safe=False,
-    entry_points={"console_scripts": ["dailycheckin = dailycheckin.main:checkin"]},
+    entry_points={"console_scripts": ["daily_checkin = daily_checkin.main:checkin"]},
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3.9",

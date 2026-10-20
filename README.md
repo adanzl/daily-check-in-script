@@ -1,6 +1,6 @@
 # DailyCheckIn
 
-基于 Docker、青龙面板、群晖或本地运行的每日签到脚本。
+基于青龙面板、群晖或本地运行的每日签到脚本。
 
 本仓库 fork 自 [Sitoi/dailycheckin](https://github.com/Sitoi/dailycheckin)。
 
@@ -36,6 +36,7 @@
 | 🟢   | IMAOTAI   | i 茅台                                                     | 26.10.20 | 申购生肖茅台                                                                 |
 | 🟤   | MIMOTION  | 小米运动                                                   | 26.10.20 | 每日刷步数                                                                   |
 | 🟢   | BAIDU     | [百度站点](https://ziyuan.baidu.com/site/index#/)          | 26.10.20 | 提交网站页面供百度收录                                                       |
+| 🟢   | BING      | [Microsoft Rewards](https://rewards.bing.com/)             | 26.10.20 | 每日活动、更多活动，并做 Edge 阅读和移动签到                                 |
 
 ## 通知
 

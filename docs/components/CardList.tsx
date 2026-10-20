@@ -25,6 +25,7 @@ const defaultCards: CardItem[] = [
   { title: '爱奇艺', href: '/settings/iqiyi' },
   { title: '全民 K 歌', href: '/settings/kgqq' },
   { title: '小米运动', href: '/settings/mimotion' },
+  { title: 'Microsoft Rewards', href: '/settings/bing' },
   { title: '什么值得买', href: '/settings/smzdm' },
   { title: '百度贴吧', href: '/settings/tieba' },
   { title: 'V2EX', href: '/settings/v2ex' },

@@ -1,0 +1,73 @@
+import { Steps } from 'nextra/components'
+import CardList from '../../components/CardList'
+
+<CardList />
+
+# Microsoft Rewards
+
+用登录后的 Cookie 领取 [Microsoft Rewards](https://rewards.bing.com/) 的每日活动和更多活动，并回报可用积分。同一轮会继续做 Edge 阅读和必应应用移动签到；这两项走 Rewards 应用接口，只带网页 Cookie 时如果换不到访问令牌，结果里会单独写明。
+
+### 配置示例
+
+```json filename="config.json" copy
+{
+  "BING": [
+    {
+      "cookie": "xxxxxx",
+      "refresh_token": "",
+      "proxy": ""
+    },
+    {
+      "cookie": "多账号 cookie 填写，请参考上面，cookie 以实际获取为准（遇到特殊字符如双引号\" 请加反斜杠转义）",
+      "proxy": ""
+    }
+  ]
+}
+```
+
+### 配置说明
+
+|           参数           |                     说明                     |
+| :----------------------: | :------------------------------------------: |
+| _**BING**_.cookie        | 登录 [rewards.bing.com](https://rewards.bing.com/) 后复制的整段 Cookie |
+| _**BING**_.code          | 可选，一次性。下面授权页跳转后地址栏里的 `code`，脚本会换成 `refresh_token` 并删掉它 |
+| _**BING**_.refresh_token | 可选。Edge 阅读和移动签到用的应用刷新令牌，换成功后会自动写入 |
+| _**BING**_.proxy         | 可选。例: `http://127.0.0.1:1080`，不需要代理就留空 |
+
+## 获取方式
+
+> 参考「爱奇艺」获取方式
+
+![获取 cookie 教程](../img/iqiyi_cookie.png)
+
+<Steps>
+
+### 打开官网
+
+进入 [Microsoft Rewards](https://rewards.bing.com/) 并登录
+
+### 打开开发者工具
+
+按 `F12` 打开开发者工具，刷新页面
+
+### 点击 Network 标签
+
+### 选择 Doc 标签
+
+### 选中 rewards.bing.com
+
+### 下滑找到 cookie 全选复制即可
+
+复制请求头里的整段 Cookie。网页 Cookie 只能领每日活动和更多活动。
+
+### Edge 阅读和移动签到
+
+用同一个微软账号登录浏览器，打开这个地址：
+
+`https://login.live.com/oauth20_authorize.srf?client_id=0000000040170455&response_type=code&scope=service::prod.rewardsplatform.microsoft.com::MBI_SSL&redirect_uri=https://login.live.com/oauth20_desktop.srf&state=rewards`
+
+跳转后的页面可以是空白或报错。复制地址栏整段，里面的 `code=` 填进 `BING.code`，马上执行一次。授权码大约几分钟就失效。脚本会把它换成 `refresh_token` 写回配置。
+
+拿到令牌后，移动签到是一次请求。Edge 阅读要按大约 5 分钟一次上报，凑满 30 分钟，这一轮会持续约 25 分钟。
+
+</Steps>
