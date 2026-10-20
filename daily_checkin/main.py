@@ -222,13 +222,16 @@ _DB_ACTIONS = {
 
 def parse_arguments(argv=None):
     parser = argparse.ArgumentParser(
+        # 固定 prog：不然 `python -m daily_checkin.main --help` 会把 usage 里
+        # 的命令名显示成 main.py，和实际要敲的命令对不上。
+        prog="daily_checkin",
         epilog=(
-            "查库示例：\n"
-            "  dailycheckin --db-stats\n"
-            "  dailycheckin --db-query --db-platform BILIBILI --db-limit 10\n"
-            "  dailycheckin --db-query --db-status fail\n"
-            "  dailycheckin --db-sql \"SELECT * FROM t_checkin_records LIMIT 5\"\n"
-            "  dailycheckin --db-init\n"
+            "查库示例（命令名是 daily_checkin，带下划线）：\n"
+            "  daily_checkin --db-stats\n"
+            "  daily_checkin --db-query --db-platform BILIBILI --db-limit 10\n"
+            "  daily_checkin --db-query --db-status fail\n"
+            "  daily_checkin --db-sql \"SELECT * FROM t_checkin_records LIMIT 5\"\n"
+            "  daily_checkin --db-init\n"
             "  等价的独立命令：python -m daily_checkin.utils.db <init|paths|stats|query|sql|add>"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
