@@ -17,6 +17,8 @@ from daily_checkin.bing.main import (
     edge_plan,
     extract_json_array,
     named_actions,
+    parse_hot_queries,
+    pc_search_quota,
     streak_state,
 )
 from daily_checkin.configs import checkin_map
@@ -64,7 +66,7 @@ class FakeSession:
             return FakeResp(text="<title>登录</title>", url="https://login.live.com/oauth20_authorize.srf")
         if "dashboard" in url:
             self.dashboard_calls += 1
-            completed = self.dashboard_calls > 1
+            completed = bool(self.posts)
             balance = 110 if completed else 100
             text = (
                 '<script src="/_next/static/chunks/app.js"></script>'
@@ -74,7 +76,7 @@ class FakeSession:
             return FakeResp(text=text + ("." * 1200), url=url)
         if "earn" in url:
             self.earn_calls += 1
-            completed = self.earn_calls > 1
+            completed = bool(self.posts)
             text = (
                 _card("activityCards", "素食汉堡", "offer-2", completed, 15)
                 + '"activitiesCompleted":0,"activitiesTotal":30,"partner":"edge"'
@@ -93,14 +95,28 @@ def test_extract_and_select_claimable_cards():
     daily = extract_json_array(page, "dailySetItems")
     assert daily[0]["title"] == "土壤守护者"
     assert claimable_cards(daily)[0]["offerId"] == "offer-1"
-    assert claimable_cards(
+    selected = claimable_cards(
         [
             {"offerId": "done", "hash": "h", "points": 5, "isCompleted": True},
             {"offerId": "locked", "hash": "h", "points": 5, "isLocked": True},
             {"offerId": "refer", "hash": "h", "points": 5, "destination": "https://rewards.bing.com/referandearn"},
             {"offerId": "quiz", "hash": "h", "points": 5, "title": "你是否知道答案？"},
+            {"offerId": "Gamification_DailySet_ZHCN_20990101_Child1", "hash": "h", "points": 10},
         ]
-    )[0]["offerId"] == "quiz"
+    )
+    assert [item["offerId"] for item in selected] == ["quiz"]
+
+
+def test_hot_queries_and_pc_search_quota():
+    payload = {"data": {"cards": [{"content": [{"content": [{"word": "热词甲"}, {"word": "热词乙"}, {"word": "热词甲"}]}]}]}}
+    assert parse_hot_queries(payload) == ["热词甲", "热词乙"]
+    quota = pc_search_quota(
+        [
+            {"name": "level_info", "attributes": {"points_per_pc_search": "3"}},
+            {"name": "WW_NewLevel2_search_PC", "attributes": {"type": "search", "progress": "3", "max": "30"}},
+        ]
+    )
+    assert quota == {"done": 3, "total": 30, "step": 3}
 
 
 def test_authorization_code_from_redirect_or_raw_value():

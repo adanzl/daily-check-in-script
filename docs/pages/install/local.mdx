@@ -21,7 +21,7 @@ import { Callout } from 'nextra/components'
 ## 一、安装
 
 ```bash copy
-pip install dailycheckin --user
+pip install daily_checkin --user
 ```
 
 ## 二、配置
@@ -41,23 +41,101 @@ pip install dailycheckin --user
 1. 运行全部脚本
 
    ```bash copy
-   dailycheckin
+   daily_checkin
    ```
 
 2. 运行指定脚本（包含），可以同时选择多个，用「空格」分开
 
    ```bash copy
-   dailycheckin --include MUSIC163 BAIDU
+   daily_checkin --include MUSIC163 BAIDU
    ```
 
 3. 运行指定脚本（排除），可以同时选择多个，用「空格」分开
 
    ```bash copy
-   dailycheckin --exclude MUSIC163 BAIDU
+   daily_checkin --exclude MUSIC163 BAIDU
    ```
 
-## 四、更新
+## 四、运行日志
+
+每次运行会自动在项目根目录的 `logs/` 下写两份日志：
+
+| 文件 | 内容 |
+| --- | --- |
+| `logs/raw-YYYYMMDD.log` | 完整控制台输出，按天分文件，每次运行用 `########## 时间 ##########` 分隔 |
+| `logs/check_in.log` | 每次运行一行摘要（成功/失败数 + 各平台状态），失败项下方附首行原因 |
+
+摘要形如：
+
+```
+2026-10-20 14:39:40 | 耗时 12s | 成功 2 | 失败 2 | 假成功:ok 假失败:fail
+    [FAIL] B站#1 B站登录态失效（SESSDATA 过期或被风控），请重新获取 Cookie
+```
+
+日志里的 `cookie` / `SESSDATA` / `bili_jct` / `token` 等字段会自动打码，只保留头尾各 4 位，可以直接贴给别人排查。
+
+日志目录默认是 `<项目根>/logs`，可以在 `config.json` 的 `OPTIONS.log_dir` 改，或用 `--log-dir` 临时指定：
 
 ```bash copy
-pip install dailycheckin --user --upgrade
+# 临时指到别处（不写进配置）
+daily_checkin --log-dir /data/logs
+```
+
+`logs/` 已被 `.gitignore` 忽略，不会进版本库。
+
+## 五、签到记录库
+
+每次运行还会把每个账号的结果写进 SQLite（默认 `data.db`），方便事后查「某天到底成没成」。同样已被 `.gitignore` 忽略。
+
+查库用 `--db-*` 参数，给了任意一个就只查库、不跑签到：
+
+```bash copy
+# 建表（幂等，首次可手动跑一次）
+daily_checkin --db-init
+
+# 看汇总：各平台成功/失败数 + 最近 10 条失败
+daily_checkin --db-stats
+
+# 查最近记录
+daily_checkin --db-query --db-platform BILIBILI --db-limit 10
+
+# 直接执行 SQL（默认只读连接，写语句会被拒绝）
+daily_checkin --db-sql "SELECT * FROM t_checkin_records LIMIT 5"
+
+# 要写就显式加 --db-write
+daily_checkin --db-sql "DELETE FROM t_checkin_records WHERE status='fail'" --db-write
+```
+
+没装成命令、或在源码目录里直接跑时，用模块方式等价调用：
+
+```bash copy
+python -m daily_checkin.utils.db stats                        # 独立库工具
+python -m daily_checkin.main --db-stats                       # 走 main.py
+```
+
+写库失败不会影响签到本身，只会在输出里打一行提示。
+
+库文件位置和是否写库都可以在 `config.json` 的 `OPTIONS` 段配置，详见 [config.json 配置](/settings/config#运行时选项)：
+
+```json filename="config.json"
+{
+  "OPTIONS": {
+    "log_dir": "/data/logs",
+    "db_path": "data.db",
+    "write_db": true
+  }
+}
+```
+
+只想临时改一次、不动配置时用命令行参数：
+
+```bash copy
+daily_checkin --db-path /tmp/test.db   # 换一个库
+daily_checkin --no-db             # 本次不写库
+```
+
+## 六、更新
+
+```bash copy
+pip install daily_checkin --user --upgrade
 ```

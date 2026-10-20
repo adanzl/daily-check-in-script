@@ -1,6 +1,7 @@
 import json
 import math
 import os
+import random
 import re
 import time
 import uuid
@@ -27,6 +28,11 @@ EDGE_PROMOTION = "edge_browsing_streak_flight"
 EDGE_OFFER_ID = "DailyCheckIn_Edge"
 EDGE_REPORT_TYPE = "29"
 EDGE_MINUTES = 30
+SEARCH_PAGE = "https://cn.bing.com/search"
+SEARCH_REPORT = "https://cn.bing.com/rewardsapp/reportactivity"
+FLYOUT_URL = "https://cn.bing.com/rewards/panelflyout/getuserinfo?channel=BingFlyout&partnerId=BingRewards"
+HOT_BOARD_URL = "https://top.baidu.com/api/board?platform=wise&tab=realtime"
+PAGE_LANGUAGES = ("zh-CN,zh;q=0.9,en;q=0.8", "en-US,en;q=0.9")
 TIMEOUT = 25
 LOGIN_HOSTS = {
     "login.live.com",
@@ -142,12 +148,18 @@ def latest_number(text, key):
     return int(found[-1]) if found else None
 
 
+def is_future_offer(item):
+    offer_id = str((item or {}).get("offerId") or "")
+    match = re.search(r"(20\d{6})", offer_id)
+    return bool(match and match.group(1) > time.strftime("%Y%m%d"))
+
+
 def is_claimable(item):
     if not isinstance(item, dict):
         return False
     if item.get("isCompleted") is True or item.get("complete") is True:
         return False
-    if item.get("isLocked") is True:
+    if item.get("isLocked") is True or is_future_offer(item):
         return False
     points = as_int(item.get("points"))
     offer_id = str(item.get("offerId") or "").strip()
@@ -175,6 +187,70 @@ def claimable_cards(items):
 def card_title(item):
     title = str(item.get("title") or item.get("name") or "活动").strip()
     return title or "活动"
+
+
+def unique_cards(items):
+    found = []
+    seen = set()
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        offer_id = str(item.get("offerId") or "")
+        if offer_id and offer_id in seen:
+            continue
+        if offer_id:
+            seen.add(offer_id)
+        found.append(item)
+    return found
+
+
+def parse_hot_queries(payload):
+    words = []
+    data = payload.get("data") if isinstance(payload, dict) else None
+    cards = data.get("cards") if isinstance(data, dict) else None
+    for card in cards or []:
+        if not isinstance(card, dict):
+            continue
+        for block in card.get("content") or []:
+            items = block.get("content") if isinstance(block, dict) else None
+            if isinstance(block, dict) and block.get("word"):
+                items = [block]
+            if not isinstance(items, list):
+                continue
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                word = str(item.get("word") or item.get("query") or "").strip()
+                if len(word) < 2 or word in words:
+                    continue
+                words.append(word)
+    return words
+
+
+def pc_search_quota(promotions):
+    found = None
+    step = 3
+    for promo in promotions or []:
+        if not isinstance(promo, dict):
+            continue
+        attrs = promo.get("attributes") if isinstance(promo.get("attributes"), dict) else {}
+        if promo.get("name") == "level_info":
+            parsed = as_int(attrs.get("points_per_pc_search"))
+            if parsed and parsed > 0:
+                step = parsed
+        if str(attrs.get("type") or "") != "search":
+            continue
+        name = str(promo.get("name") or "")
+        if "PC" not in name and attrs.get("AnswerScenario.Tag") != "PCSearch":
+            continue
+        progress = as_int(attrs.get("progress"))
+        maximum = as_int(attrs.get("max"))
+        if progress is None or not maximum or maximum <= 0:
+            continue
+        found = (max(0, progress), maximum)
+    if not found:
+        return None
+    return {"done": found[0], "total": found[1], "step": step}
 
 
 def named_actions(script):
@@ -305,11 +381,13 @@ class Bing(CheckIn):
             session.proxies.update({"http": proxy, "https": proxy})
         return session
 
-    def _get_page(self, session, url):
+    def _get_page(self, session, url, language=None):
         headers = {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Referer": DASHBOARD_URL,
         }
+        if language:
+            headers["Accept-Language"] = language
         last_error = "请求失败"
         current = url
         for _ in range(3):
@@ -343,6 +421,104 @@ class Bing(CheckIn):
             if actions.get("reportActivity"):
                 return actions["reportActivity"]
         return KNOWN_REPORT_ACTION
+
+    def _boards(self, session):
+        daily, more = [], []
+        dashboard = earn = ""
+        for language in PAGE_LANGUAGES:
+            dashboard = self._get_page(session, DASHBOARD_URL, language)
+            earn = self._get_page(session, EARN_URL, language)
+            daily.extend(extract_json_array(dashboard, "dailySetItems"))
+            more.extend(extract_json_array(earn, "activityCards"))
+        return unique_cards(daily), unique_cards(more), dashboard, earn
+
+    def _flyout_promotions(self, session):
+        try:
+            response = session.get(
+                FLYOUT_URL,
+                headers={"Accept": "application/json", "Referer": "https://cn.bing.com/"},
+                timeout=TIMEOUT,
+            )
+            payload = response.json()
+        except (requests.RequestException, ValueError):
+            return None
+        user = payload.get("userInfo") if isinstance(payload, dict) else None
+        promotions = user.get("promotions") if isinstance(user, dict) else None
+        return promotions if isinstance(promotions, list) else None
+
+    def _hot_queries(self, session):
+        bare = self._token_session(session)
+        bare.headers["Accept-Language"] = "zh-CN,zh;q=0.9"
+        try:
+            response = bare.get(
+                HOT_BOARD_URL,
+                headers={"Accept": "application/json", "Referer": "https://top.baidu.com/board?tab=realtime"},
+                timeout=TIMEOUT,
+            )
+            payload = response.json()
+        except (requests.RequestException, ValueError):
+            return []
+        words = parse_hot_queries(payload)
+        random.shuffle(words)
+        return words
+
+    def _one_search(self, session, query):
+        try:
+            page = session.get(
+                SEARCH_PAGE,
+                params={"q": query, "form": "QBLH"},
+                headers={"Referer": "https://cn.bing.com/"},
+                timeout=TIMEOUT,
+            )
+        except requests.RequestException:
+            return False
+        text = getattr(page, "text", "") or ""
+        ig = re.search(r'IG:"([A-F0-9]+)"', text)
+        if not ig:
+            return True
+        iid = re.search(r'data-iid="([^"]+)"', text, re.I)
+        report_url = f"{SEARCH_REPORT}?IG={ig.group(1)}&IID={iid.group(1) if iid else 'SERP.5000'}&q={quote(query)}"
+        body = "url=" + quote(getattr(page, "url", "") or "", safe="") + "&V=web"
+        try:
+            session.post(
+                report_url,
+                data=body,
+                headers={
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Referer": getattr(page, "url", SEARCH_PAGE),
+                    "Origin": "https://cn.bing.com",
+                },
+                timeout=TIMEOUT,
+            )
+        except requests.RequestException:
+            return False
+        return True
+
+    def _report_searches(self, session):
+        quota = pc_search_quota(self._flyout_promotions(session))
+        if quota is None:
+            return "电脑搜索: 暂时读不到进度"
+        if quota["done"] >= quota["total"]:
+            return f"电脑搜索: {quota['done']}/{quota['total']} 今日已完成"
+        words = self._hot_queries(session)
+        if not words:
+            return f"电脑搜索: {quota['done']}/{quota['total']}，没有取到热词"
+        needed = math.ceil(max(0, quota["total"] - quota["done"]) / quota["step"])
+        limit = min(len(words), needed + 2, 15)
+        for index, query in enumerate(words[:limit], start=1):
+            if quota["done"] >= quota["total"]:
+                break
+            print(f"电脑搜索 {index}/{limit}: {query}")
+            self._one_search(session, query)
+            refreshed = pc_search_quota(self._flyout_promotions(session))
+            if refreshed:
+                quota = refreshed
+            print(f"电脑搜索进度 {quota['done']}/{quota['total']}")
+            if quota["done"] >= quota["total"]:
+                return f"电脑搜索: {quota['done']}/{quota['total']} 今日已完成"
+            if index < limit:
+                time.sleep(random.randint(8, 14))
+        return f"电脑搜索: {quota['done']}/{quota['total']}"
 
     def _claim(self, session, item, page, action_id):
         body = [
@@ -657,16 +833,15 @@ class Bing(CheckIn):
         return f"{label}: {len(done)}/{len(done)} 已完成"
 
     def run(self, session):
-        dashboard = self._get_page(session, DASHBOARD_URL)
-        earn = self._get_page(session, EARN_URL)
+        daily_cards, more_cards, dashboard, earn = self._boards(session)
         if "dailySetItems" not in dashboard and "activityCards" not in earn:
             raise RuntimeError("Cookie 失效或未登录 Microsoft Rewards")
         before = latest_number(dashboard, "balance")
         if before is None:
             before = latest_number(earn, "balance")
         action_id = self._discover_action(session, dashboard + earn)
-        daily = claimable_cards(extract_json_array(dashboard, "dailySetItems"))
-        more = claimable_cards(extract_json_array(earn, "activityCards"))
+        daily = claimable_cards(daily_cards)
+        more = claimable_cards(more_cards)
         claimed = []
         for item in daily:
             if self._claim(session, item, "dashboard", action_id):
@@ -674,14 +849,14 @@ class Bing(CheckIn):
         for item in more:
             if self._claim(session, item, "earn", action_id):
                 claimed.append(card_title(item))
-        dashboard = self._get_page(session, DASHBOARD_URL)
-        earn = self._get_page(session, EARN_URL)
+        daily_cards, more_cards, dashboard, earn = self._boards(session)
         after = latest_number(dashboard, "balance")
         if after is None:
             after = latest_number(earn, "balance")
         lines = [
-            self._summarize_cards("每日活动", extract_json_array(dashboard, "dailySetItems")),
-            self._summarize_cards("更多活动", extract_json_array(earn, "activityCards")),
+            self._summarize_cards("每日活动", daily_cards),
+            self._summarize_cards("更多活动", more_cards),
+            self._report_searches(session),
         ]
         if claimed:
             lines.append("本次领取: " + "、".join(claimed))
@@ -705,9 +880,7 @@ class Bing(CheckIn):
             lines.append(f"Edge 阅读: {edge_text}")
             lines.append(f"移动签到: {mobile_text}")
             lines.append("Edge 阅读和移动签到需要 Rewards 应用访问令牌，当前网页 Cookie 换不到")
-        pending = claimable_cards(extract_json_array(dashboard, "dailySetItems")) + claimable_cards(
-            extract_json_array(earn, "activityCards")
-        )
+        pending = claimable_cards(daily_cards) + claimable_cards(more_cards)
         if pending and not claimed:
             raise RuntimeError("\n".join(lines + ["签到失败: 活动没有领到"]))
         return "\n".join(lines)

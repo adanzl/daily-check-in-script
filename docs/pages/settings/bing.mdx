@@ -5,7 +5,15 @@ import CardList from '../../components/CardList'
 
 # Microsoft Rewards
 
-用登录后的 Cookie 领取 [Microsoft Rewards](https://rewards.bing.com/) 的每日活动和更多活动，并回报可用积分。同一轮会继续做 Edge 阅读和必应应用移动签到；这两项走 Rewards 应用接口，只带网页 Cookie 时如果换不到访问令牌，结果里会单独写明。
+用登录后的 Cookie 领取 [Microsoft Rewards](https://rewards.bing.com/) 积分。一次运行会依次做这些事，并在结果里写明可用积分：
+
+- **每日活动**：当天的 3 个每日活动。日期晚于今天的每日活动会跳过
+- **更多活动**：积分大于 0 的活动，例如搜索、问答和拼图。中文和英文页面都会看一遍。0 积分的推荐任务会跳过
+- **电脑搜索**：把必应搜索额度搜满，例如 30 分。搜索词来自百度实时热搜，两次搜索之间会停几秒
+- **Edge 阅读**：凑满当天 30 分钟。大约每 5 分钟上报一次，这一轮大约要 25 分钟
+- **移动签到**：必应应用每日签到，一次请求
+
+只填写网页 Cookie 时，每日活动和更多活动可以完成。Edge 阅读和移动签到还要应用访问令牌；没有令牌时，这两项会在结果里单独写明，不影响前面已经领到的积分。
 
 ### 配置示例
 
@@ -14,11 +22,14 @@ import CardList from '../../components/CardList'
   "BING": [
     {
       "cookie": "xxxxxx",
+      "code": "",
       "refresh_token": "",
       "proxy": ""
     },
     {
       "cookie": "多账号 cookie 填写，请参考上面，cookie 以实际获取为准（遇到特殊字符如双引号\" 请加反斜杠转义）",
+      "code": "",
+      "refresh_token": "",
       "proxy": ""
     }
   ]
@@ -58,16 +69,16 @@ import CardList from '../../components/CardList'
 
 ### 下滑找到 cookie 全选复制即可
 
-复制请求头里的整段 Cookie。网页 Cookie 只能领每日活动和更多活动。
+复制请求头里的整段 Cookie，填进 `cookie`。只做每日活动和更多活动时，到这一步就可以。
 
-### Edge 阅读和移动签到
+### 获取 Edge 阅读和移动签到的授权码
 
 用同一个微软账号登录浏览器，打开这个地址：
 
 `https://login.live.com/oauth20_authorize.srf?client_id=0000000040170455&response_type=code&scope=service::prod.rewardsplatform.microsoft.com::MBI_SSL&redirect_uri=https://login.live.com/oauth20_desktop.srf&state=rewards`
 
-跳转后的页面可以是空白或报错。复制地址栏整段，里面的 `code=` 填进 `BING.code`，马上执行一次。授权码大约几分钟就失效。脚本会把它换成 `refresh_token` 写回配置。
+跳转后的页面可以是空白或报错。把地址栏整段填进 `code`，马上执行一次。授权码大约几分钟就失效。脚本会把它换成 `refresh_token` 写回配置，并删掉 `code`。之后每次运行沿用 `cookie` 和 `refresh_token` 即可。
 
-拿到令牌后，移动签到是一次请求。Edge 阅读要按大约 5 分钟一次上报，凑满 30 分钟，这一轮会持续约 25 分钟。
+移动签到是一次请求。Edge 阅读大约每 5 分钟上报一次，凑满 30 分钟，这一轮大约持续 25 分钟。
 
 </Steps>

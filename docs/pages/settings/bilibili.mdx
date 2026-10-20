@@ -15,13 +15,15 @@ import CardList from '../../components/CardList'
       "cookie": "_uuid=xxxxxx; rpdid=xxxxxx; LIVE_BUVID=xxxxxx; PVID=xxxxxx; blackside_state=xxxxxx; CURRENT_FNVAL=xxxxxx; buvid3=xxxxxx; fingerprint3=xxxxxx; fingerprint=xxxxxx; buivd_fp=xxxxxx; buvid_fp_plain=xxxxxx; DedeUserID=xxxxxx; DedeUserID__ckMd5=xxxxxx; SESSDATA=xxxxxx; bili_jct=xxxxxx; bsource=xxxxxx; finger=xxxxxx; fingerprint_s=xxxxxx;",
       "coin_num": 0,
       "coin_type": 1,
-      "silver2coin": true
+      "silver2coin": true,
+      "watch_video": false
     },
     {
       "cookie": "多账号 cookie 填写，请参考上面，cookie 以实际获取为准（遇到特殊字符如双引号\" 请加反斜杠转义）",
       "coin_num": 0,
       "coin_type": 1,
-      "silver2coin": true
+      "silver2coin": true,
+      "watch_video": false
     }
   ]
 }
@@ -35,6 +37,7 @@ import CardList from '../../components/CardList'
 |  _**BILIBILI**_.coin_num   |                                                        Bilibili 每日投币数量                                                         |
 |  _**BILIBILI**_.coin_type  | Bilibili 投币方式 默认为 0 ；1: 为关注用户列表视频投币 0: 为随机投币。如果关注用户发布的视频不足配置的投币数，则剩余部分使用随机投币 |
 | _**BILIBILI**_.silver2coin |                                           Bilibili 是否开启银瓜子换硬币，默认为 True 开启                                            |
+| _**BILIBILI**_.watch_video |              Bilibili 是否开启「观看视频 300 秒」任务，默认为 False 关闭。该任务会往「观看历史」写一条记录，经验在 Lv6 封顶后没有收益却会污染历史，因此默认不执行               |
 
 ## 获取方式
 

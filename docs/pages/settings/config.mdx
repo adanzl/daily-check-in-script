@@ -19,6 +19,11 @@ import CardList from '../../components/CardList'
 
 ```json filename="config.json" copy
 {
+  "OPTIONS": {
+    "log_dir": "",
+    "db_path": "",
+    "write_db": true
+  },
   "BARK_URL": "",
   "COOLPUSHEMAIL": true,
   "COOLPUSHQQ": true,
@@ -173,10 +178,14 @@ import CardList from '../../components/CardList'
   "BING": [
     {
       "cookie": "xxxxxx",
+      "code": "",
+      "refresh_token": "",
       "proxy": ""
     },
     {
       "cookie": "多账号 cookie 填写，请参考上面，cookie 以实际获取为准（遇到特殊字符如双引号\" 请加反斜杠转义）",
+      "code": "",
+      "refresh_token": "",
       "proxy": ""
     }
   ],
@@ -216,6 +225,99 @@ import CardList from '../../components/CardList'
   ]
 }
 ```
+
+## 运行时选项
+
+`OPTIONS` 段控制日志和签到记录库的落盘位置，全部可省略 —— 省略时用默认值，行为和以前一样。
+
+| 键 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `log_dir` | string | `<项目根>/logs` | 运行日志目录。容器里可指到挂载卷 |
+| `db_path` | string | `<项目根>/data.db` | 签到记录库位置 |
+| `write_db` | bool | `true` | 是否写库。`false` 则完全不碰数据库 |
+
+```json filename="config.json" copy
+{
+  "OPTIONS": {
+    "log_dir": "/data/logs",
+    "db_path": "data.db",
+    "write_db": true
+  }
+}
+```
+
+<Callout type="info">
+  这三项也可以写在 `config.json` 的**顶层**（不嵌在 `OPTIONS` 里），效果相同，适合只想改一项的场景。
+</Callout>
+
+<Callout type="warning">
+  环境变量 `DC_LOG_DIR` / `DC_DB` / `DC_NO_DB=1` 仍然有效，主要给容器和临时调试用。**配置文件优先于环境变量** —— 如果你在容器里用环境变量改目录，同时又留了 `OPTIONS` 段，以 `OPTIONS` 为准。
+</Callout>
+
+### 命令行覆盖
+
+临时改一次、不想动配置文件时，可以直接用命令行参数。**它们的优先级比 `OPTIONS` 和环境变量都高**：
+
+| 参数 | 作用 |
+| --- | --- |
+| `--db-path PATH` | 只用这一次指定的库文件 |
+| `--no-db` | 本次不写库 |
+| `--log-dir DIR` | 本次把日志写到指定目录 |
+
+```bash copy
+# 试跑一遍，结果写到临时库，不碰正式记录
+daily_checkin --db-path /tmp/test.db
+
+# 只看输出，不落任何日志和记录
+daily_checkin --no-db
+
+# 排查问题时单独存一份日志
+daily_checkin --log-dir /tmp/dc-trace
+```
+
+优先级从高到低完整顺序：
+
+```
+命令行参数 > config.json 的 OPTIONS > 环境变量 > 内置默认值
+```
+
+### 用 `--db-*` 查库
+
+给任意一个 `--db-*` 动参，程序就**只查库、不跑签到**（也不写日志、不读签到配置）：
+
+| 参数 | 作用 |
+| --- | --- |
+| `--db-init` | 建表（幂等） |
+| `--db-paths` | 显示库位置、是否已建、配置来源 |
+| `--db-stats` | 各平台成功/失败汇总 |
+| `--db-query` | 查询签到记录，配合下面的筛选条件 |
+| `--db-sql SQL` | 执行 SQL；默认只读，要写加 `--db-write` |
+
+`--db-query` 与 `--db-sql` 的配套参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `--db-platform BILIBILI` | 按平台筛选 |
+| `--db-status ok\|fail` | 按状态筛选 |
+| `--db-since 2026-10-19` | `created_at` ≥ 该值 |
+| `--db-limit 20` | 条数上限（默认 20） |
+| `--db-json` | 以 JSON 输出，便于别的程序解析 |
+| `--db-write` | 配合 `--db-sql` 允许写语句 |
+
+```bash copy
+daily_checkin --db-init                                    # 建表
+daily_checkin --db-stats                                   # 汇总
+daily_checkin --db-query --db-platform BILIBILI --db-limit 10
+daily_checkin --db-query --db-status fail --db-since 2026-10-19
+daily_checkin --db-sql "SELECT * FROM t_checkin_records LIMIT 5"
+daily_checkin --db-query --db-json                         # 给脚本解析
+```
+
+<Callout type="info">
+  `--db-*` 一次只能用**一个动作**（`--db-init` / `--db-paths` / `--db-stats` / `--db-query` / `--db-sql` 互斥），同时给两个会报错。筛选参数可以任意组合。
+
+  不想用旗标也可以走独立命令，功能完全等价：`python -m daily_checkin.utils.db <init|paths|sql|add|query|stats>`。
+</Callout>
 
 ## 通知平台配置
 
