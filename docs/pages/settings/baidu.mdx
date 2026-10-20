@@ -1,0 +1,43 @@
+import { Callout } from 'nextra/components'
+import CardList from '../../components/CardList'
+
+<CardList />
+
+# Baidu 站点提交
+
+### 配置示例
+
+```json filename="config.json" copy
+{
+  "BAIDU": [
+    {
+      "data_url": "https://fastly.jsdelivr.net/gh/Sitoi/Sitoi.github.io/baidu_urls.txt",
+      "submit_url": "http://data.zz.baidu.com/urls?site=https://sitoi.cn&token=xxxxxx",
+      "times": 10
+    },
+    {
+      "data_url": "多账号 data_url 链接地址，以实际获取为准",
+      "submit_url": "多账号 submit_url 链接地址，以实际获取为准",
+      "times": 10
+    }
+  ]
+}
+```
+
+### 配置说明
+
+|          参数           |                  说明                   |
+| :---------------------: | :-------------------------------------: |
+|  _**BAIDUT**_.data_url  |           提交网站的 URL 链接           |
+| _**BAIDUT**_.submit_url | 百度搜索资源平台 提交百度网站的目标 URL |
+|   _**BAIDUT**_.times    |        每日对同一个网站提交次数         |
+
+## 获取方式
+
+[百度搜索资源平台](https://ziyuan.baidu.com/site/index#/)
+
+![获取百度云提交链接教程](../img/submit_url.png)
+
+- _**BAIDUT**_.data_url: 提交网站的 URL 链接，参考链接：[https://sitoi.cn/baidu_urls.txt](https://sitoi.cn/baidu_urls.txt)
+- _**BAIDUT**_.submit_url: 提交百度网站的目标 URL，参考格式：`http://data.zz.baidu.com/urls?site=https://sitoi.cn&token=xxxxx`
+- _**BAIDUT**_.times: 单次任务执行对同一个网站提交次数

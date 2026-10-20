@@ -1,0 +1,36 @@
+import { Callout } from 'nextra/components'
+import CardList from '../../components/CardList'
+
+<CardList />
+
+# 小米运动
+
+### 配置示例
+
+```json filename="config.json" copy
+{
+  "MIMOTION": [
+    {
+      "max_step": "20000",
+      "min_step": "10000",
+      "password": "Sitoi",
+      "phone": "18888xxxxxx"
+    },
+    {
+      "max_step": "多账号 最大步数填写，请参考上面",
+      "min_step": "多账号 最小步数填写，请参考上面",
+      "password": "多账号 密码填写，请参考上面",
+      "phone": "多账号 手机号填写，请参考上面"
+    }
+  ]
+}
+```
+
+### 配置说明
+
+|          参数           |                说明                |
+| :---------------------: | :--------------------------------: |
+|  _**MIMOTION**_.phone   | 小米运动刷步数的「手机」或「邮箱」 |
+| _**MIMOTION**_.password |      小米运动刷步数的账号密码      |
+| _**MIMOTION**_.min_step |      小米运动刷步数的最小步数      |
+| _**MIMOTION**_.max_step |      小米运动刷步数的最大步数      |
