@@ -54,7 +54,7 @@ notice_map = {
 # 运行时选项：以前只能靠环境变量，现在优先读 config.json 的这一段。
 # 环境变量仍然保留，作为容器/临时覆盖的兜底。
 #   log_dir     日志目录，默认 <项目根>/logs
-#   db_path     签到记录库，默认 <项目根>/data.db
+#   db_path     签到记录库，默认 <项目根>/data/data.db
 #   write_db    是否写库，false 可完全关闭
 OPTIONS_SECTION = "OPTIONS"
 

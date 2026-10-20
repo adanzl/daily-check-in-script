@@ -50,7 +50,7 @@ def _run_with(items):
         # 这份测试只关心日志，但 checkin() 现在顺手会写库。
         # 不能靠 set_default_path(tmp) 隔离：_checkin_impl() 里会调
         # _resolve_options() 重算一遍，又把路径重置回默认值，于是在仓库
-        # 里留下 data.db。直接替换掉写库函数最稳妥。
+        # 里留下 data/data.db。直接替换掉写库函数最稳妥。
         m._write_db = lambda *a, **k: (0, "")
         m.checkin_map = {name: (name, cls) for name, cls in items}
         m.check_config = lambda task_list: ({}, {name.lower(): [{}] for name, _ in items})

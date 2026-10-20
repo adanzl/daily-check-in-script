@@ -39,9 +39,9 @@ import sqlite3
 import sys
 from datetime import datetime
 
-# 库文件默认是项目根目录的 data.db；DC_DB 环境变量可覆盖
+# 库文件默认放在 <项目根>/data/data.db，不放根目录；DC_DB 环境变量可覆盖
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DEFAULT_DB = os.path.join(_PROJECT_ROOT, "data.db")
+DEFAULT_DB = os.path.join(_PROJECT_ROOT, "data", "data.db")
 
 # 表结构。改结构只改这里，init 幂等。
 TABLE = "t_checkin_records"
@@ -106,7 +106,7 @@ def set_default_path(path: str | None) -> None:
 def db_path(explicit: str | None = None) -> str:
     """库文件路径，优先级从高到低：
 
-    显式参数 > config.json 的 OPTIONS.db_path > 环境变量 DC_DB > data.db
+    显式参数 > config.json 的 OPTIONS.db_path > 环境变量 DC_DB > data/data.db
 
     配置排在环境变量前面，是为了和 main.py 的 LOG_DIR 保持一致 ——
     两处用不同的优先级会让人搞不清到底哪份生效。
@@ -668,7 +668,7 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument("--db", help="库文件路径（默认 data.db，可用环境变量 DC_DB 覆盖）")
+    parser.add_argument("--db", help="库文件路径（默认 data/data.db，可用环境变量 DC_DB 覆盖）")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("init", help="建表（幂等）").set_defaults(func=cmd_init)

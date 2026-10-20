@@ -138,7 +138,6 @@ node_modules
 .DS_Store
 Agents.md
 
-# 运行时产物：签到记录库与日志
-data.db
+# 运行时产物：签到记录库在 data/，日志在 logs/
 data/
 logs/

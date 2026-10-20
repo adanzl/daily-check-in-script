@@ -85,7 +85,7 @@ daily_checkin --log-dir /data/logs
 
 ## 五、签到记录库
 
-每次运行还会把每个账号的结果写进 SQLite（默认 `data.db`），方便事后查「某天到底成没成」。同样已被 `.gitignore` 忽略。
+每次运行还会把每个账号的结果写进 SQLite（默认 `data/data.db`），方便事后查「某天到底成没成」。`data/` 目录已被 `.gitignore` 忽略。
 
 查库用 `--db-*` 参数，给了任意一个就只查库、不跑签到：
 
@@ -121,7 +121,7 @@ python -m daily_checkin.main --db-stats                       # 走 main.py
 {
   "OPTIONS": {
     "log_dir": "/data/logs",
-    "db_path": "data.db",
+    "db_path": "data/data.db",
     "write_db": true
   }
 }
