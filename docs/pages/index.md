@@ -70,7 +70,7 @@
 | 🟢️  | IMAOTAI   | i 茅台                                                     | 25.09.28 | 申购生肖茅台                                                                 |
 | 🟤   | MIMOTION  | 小米运动                                                   | 25.09.28 | 每日小米运动刷步数                                                           |
 | 🟢️  | BAIDU     | [百度站点](https://ziyuan.baidu.com/site/index#/)          | 25.09.28 | 提交网站页面供百度收录                                                       |
-| 🟢   | BING      | [Microsoft Rewards](https://rewards.bing.com/)             | 26.10.20 | 每日活动、更多活动、电脑搜索，并做 Edge 阅读和移动签到                                 |
+| 🟢   | BING      | [Microsoft Rewards](https://rewards.bing.com/)             | 26.10.22 | 每日活动、更多活动、电脑搜索，并做 Edge 阅读和移动签到                                 |
 
 ## 💬 通知列表
 

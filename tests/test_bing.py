@@ -47,7 +47,7 @@ def _card(marker, title, offer_id, completed, points=10):
 
 
 class FakeSession:
-    def __init__(self, dashboard_status=200, location=""):
+    def __init__(self, dashboard_status=200, location="", redirect_times=1):
         self.posts = []
         self.headers = {}
         self.proxies = {}
@@ -55,9 +55,10 @@ class FakeSession:
         self.earn_calls = 0
         self.dashboard_status = dashboard_status
         self.location = location
+        self.redirect_times = redirect_times
 
     def get(self, url, **kwargs):
-        if self.dashboard_status != 200 and "dashboard" in url and self.dashboard_calls == 0:
+        if self.dashboard_status != 200 and "dashboard" in url and self.dashboard_calls < self.redirect_times:
             self.dashboard_calls += 1
             return FakeResp(text="", url=url, status_code=self.dashboard_status, headers={"Location": self.location})
         if "chunks/" in url:
@@ -153,14 +154,36 @@ def test_run_claims_daily_and_more_and_reports_app_tasks():
     assert "offer-2" in session.posts[1][1].decode()
 
 
-def test_run_login_redirect_raises():
-    session = FakeSession(dashboard_status=302, location="https://login.live.com/oauth")
+def test_run_login_redirect_retries_then_raises():
+    import daily_checkin.bing.main as bing_module
+
+    original_sleep = bing_module.time.sleep
+    bing_module.time.sleep = lambda seconds: None
     try:
-        Bing({"cookie": "a=b"}).run(session)
-    except RuntimeError as exc:
-        assert "未登录" in str(exc)
-    else:
-        raise AssertionError("应当因登录跳转失败")
+        session = FakeSession(dashboard_status=302, location="https://login.live.com/oauth", redirect_times=99)
+        try:
+            Bing({"cookie": "a=b"}).run(session)
+        except RuntimeError as exc:
+            assert "未登录" in str(exc)
+        else:
+            raise AssertionError("应当因登录跳转失败")
+        assert session.dashboard_calls == bing_module.PAGE_ATTEMPTS
+    finally:
+        bing_module.time.sleep = original_sleep
+
+
+def test_run_login_redirect_recovers_after_retry():
+    import daily_checkin.bing.main as bing_module
+
+    original_sleep = bing_module.time.sleep
+    bing_module.time.sleep = lambda seconds: None
+    try:
+        session = FakeSession(dashboard_status=307, location="https://login.windows.net/x", redirect_times=2)
+        text = Bing({"cookie": "a=b"}).run(session)
+        assert "可用积分" in text
+        assert session.dashboard_calls >= 2
+    finally:
+        bing_module.time.sleep = original_sleep
 
 
 def test_missing_cookie_raises_before_network():

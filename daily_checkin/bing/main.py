@@ -34,6 +34,9 @@ FLYOUT_URL = "https://cn.bing.com/rewards/panelflyout/getuserinfo?channel=BingFl
 HOT_BOARD_URL = "https://top.baidu.com/api/board?platform=wise&tab=realtime"
 PAGE_LANGUAGES = ("zh-CN,zh;q=0.9,en;q=0.8", "en-US,en;q=0.9")
 TIMEOUT = 25
+# rewards 页面偶发把已登录会话 307 到 login.windows.net，先退避重试再判定 cookie 失效
+PAGE_ATTEMPTS = 4
+RETRY_BACKOFF = 2
 LOGIN_HOSTS = {
     "login.live.com",
     "login.microsoftonline.com",
@@ -390,11 +393,14 @@ class Bing(CheckIn):
             headers["Accept-Language"] = language
         last_error = "请求失败"
         current = url
-        for _ in range(3):
+        # 登录跳转不一定是真失效，rewards 页面会偶发 307 到 login.windows.net，退避重试几次再判定
+        for attempt in range(PAGE_ATTEMPTS):
             try:
                 response = session.get(current, headers=headers, timeout=TIMEOUT, allow_redirects=False)
             except requests.RequestException as exc:
                 last_error = f"请求失败: {exc.__class__.__name__}"
+                if attempt < PAGE_ATTEMPTS - 1:
+                    time.sleep(RETRY_BACKOFF * (attempt + 1))
                 continue
             status = getattr(response, "status_code", 200)
             location = ""
@@ -403,12 +409,19 @@ class Bing(CheckIn):
                 location = response_headers.get("Location") or response_headers.get("location") or ""
             if status in (301, 302, 303, 307, 308):
                 if is_login_url(location):
-                    raise RuntimeError("Cookie 失效或未登录 Microsoft Rewards")
+                    last_error = "Cookie 失效或未登录 Microsoft Rewards（重新导出浏览器完整 Cookie，需含 MSPAuth、MSPProf）"
+                    if attempt < PAGE_ATTEMPTS - 1:
+                        print(f"登录跳转，第 {attempt + 1} 次重试: {location[:80]}")
+                        time.sleep(RETRY_BACKOFF * (attempt + 1))
+                        continue
+                    raise RuntimeError(last_error)
                 current = urljoin(current, location)
                 continue
             if status == 200 and len(getattr(response, "text", "") or "") > 1000:
                 return response.text or ""
             last_error = f"请求失败: HTTP {status}"
+            if attempt < PAGE_ATTEMPTS - 1:
+                time.sleep(RETRY_BACKOFF * (attempt + 1))
         raise RuntimeError(last_error)
 
     def _discover_action(self, session, html):
@@ -835,7 +848,7 @@ class Bing(CheckIn):
     def run(self, session):
         daily_cards, more_cards, dashboard, earn = self._boards(session)
         if "dailySetItems" not in dashboard and "activityCards" not in earn:
-            raise RuntimeError("Cookie 失效或未登录 Microsoft Rewards")
+            raise RuntimeError("Cookie 失效或未登录 Microsoft Rewards（重新导出浏览器完整 Cookie，需含 MSPAuth、MSPProf）")
         before = latest_number(dashboard, "balance")
         if before is None:
             before = latest_number(earn, "balance")

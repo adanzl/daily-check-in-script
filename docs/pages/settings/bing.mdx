@@ -40,7 +40,7 @@ import CardList from '../../components/CardList'
 
 |           参数           |                     说明                     |
 | :----------------------: | :------------------------------------------: |
-| _**BING**_.cookie        | 登录 [rewards.bing.com](https://rewards.bing.com/) 后复制的整段 Cookie |
+| _**BING**_.cookie        | 登录 [rewards.bing.com](https://rewards.bing.com/) 后复制的整段 Cookie，建议从浏览器的 Cookie 列表里完整导出（含 `MSPAuth`、`MSPProf` 等 MSA 相关项） |
 | _**BING**_.code          | 可选，一次性。下面授权页跳转后地址栏里的 `code`，脚本会换成 `refresh_token` 并删掉它 |
 | _**BING**_.refresh_token | 可选。Edge 阅读和移动签到用的应用刷新令牌，换成功后会自动写入 |
 | _**BING**_.proxy         | 可选。例: `http://127.0.0.1:1080`，不需要代理就留空 |
@@ -70,6 +70,8 @@ import CardList from '../../components/CardList'
 ### 下滑找到 cookie 全选复制即可
 
 复制请求头里的整段 Cookie，填进 `cookie`。只做每日活动和更多活动时，到这一步就可以。
+
+> rewards 页面偶尔会把已登录的会话跳到登录页，脚本遇到这种情况会退避重试几次，仍失败才判定 Cookie 失效。若经常出现，说明 Cookie 里缺少 MSA 相关的项，按上面的建议重新完整导出一次。
 
 ### 获取 Edge 阅读和移动签到的授权码
 
