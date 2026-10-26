@@ -16,6 +16,7 @@ from daily_checkin.bing.main import (
     clean_cookie,
     edge_plan,
     extract_json_array,
+    fill_queries,
     named_actions,
     parse_hot_queries,
     pc_search_quota,
@@ -105,7 +106,28 @@ def test_extract_and_select_claimable_cards():
             {"offerId": "Gamification_DailySet_ZHCN_20990101_Child1", "hash": "h", "points": 10},
         ]
     )
-    assert [item["offerId"] for item in selected] == ["quiz"]
+    # referandearn 也可以直接领，只有已完成、锁定、未来日期的活动被排除
+    assert [item["offerId"] for item in selected] == ["refer", "quiz"]
+
+
+def test_fill_queries_pads_to_needed_count():
+    words = [f"热词{i}" for i in range(12)]
+    queries = fill_queries(words, 22)
+    assert len(queries) == 22
+    assert len(set(queries)) == 22
+    assert queries[:12] == words
+    assert fill_queries([f"w{i}" for i in range(30)], 22) == [f"w{i}" for i in range(22)]
+    assert len(fill_queries([], 5)) == 5
+
+
+def test_summarize_shows_skipped_cards():
+    bot = Bing({"cookie": "a=b"})
+    cards = [
+        {"offerId": "done", "hash": "h", "points": 10, "isCompleted": True},
+        {"offerId": "locked", "hash": "h", "points": 10, "isLocked": True},
+    ]
+    text = bot._summarize_cards("每日活动", cards)
+    assert text == "每日活动: 1/2 已完成，跳过 1 个", text
 
 
 def test_hot_queries_and_pc_search_quota():

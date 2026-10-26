@@ -167,10 +167,10 @@ def is_claimable(item):
     points = as_int(item.get("points"))
     offer_id = str(item.get("offerId") or "").strip()
     digest = str(item.get("hash") or "").strip()
-    destination = str(item.get("destination") or "").lower()
     if points is None or points <= 0 or not offer_id or not digest or digest == "null":
         return False
-    return "referandearn" not in destination
+    # 「推荐好友」这类 referandearn 任务不用真邀请，直接调同一个领奖接口就能完成
+    return True
 
 
 def claimable_cards(items):
@@ -205,6 +205,21 @@ def unique_cards(items):
             seen.add(offer_id)
         found.append(item)
     return found
+
+
+def fill_queries(words, count):
+    """凑够 count 个搜索词。热词不够时补上序号，避免搜索次数被词池卡住。"""
+    queries = list(words or [])[:count]
+    index = 1
+    while len(queries) < count:
+        base = words[len(queries) % len(words)] if words else "必应搜索"
+        candidate = f"{base} {index}"
+        if candidate not in queries:
+            queries.append(candidate)
+        index += 1
+        if index > count * 2:
+            break
+    return queries
 
 
 def parse_hot_queries(payload):
@@ -517,8 +532,9 @@ class Bing(CheckIn):
         if not words:
             return f"电脑搜索: {quota['done']}/{quota['total']}，没有取到热词"
         needed = math.ceil(max(0, quota["total"] - quota["done"]) / quota["step"])
-        limit = min(len(words), needed + 2, 15)
-        for index, query in enumerate(words[:limit], start=1):
+        queries = fill_queries(words, needed + 2)
+        limit = len(queries)
+        for index, query in enumerate(queries, start=1):
             if quota["done"] >= quota["total"]:
                 break
             print(f"电脑搜索 {index}/{limit}: {query}")
@@ -830,20 +846,19 @@ class Bing(CheckIn):
         return f"移动签到: {state}"
 
     def _summarize_cards(self, label, items):
-        scored = [
-            item
-            for item in items or []
-            if (as_int(item.get("points")) or 0) > 0
-            and "referandearn" not in str(item.get("destination") or "").lower()
-        ]
+        scored = [item for item in items or [] if (as_int(item.get("points")) or 0) > 0]
         if not scored:
             return f"{label}: 没有可做的活动"
         done = [item for item in scored if item.get("isCompleted") is True or item.get("complete") is True]
         pending = claimable_cards(scored)
+        total = len(done) + len(pending)
         if pending:
             names = "、".join(card_title(item) for item in pending)
-            return f"{label}: {len(done)}/{len(done) + len(pending)}，未完成 {names}"
-        return f"{label}: {len(done)}/{len(done)} 已完成"
+            return f"{label}: {len(done)}/{total}，未完成 {names}"
+        # 锁定、过期活动也算在分母里，避免「跳过」被当成满分
+        if total < len(scored):
+            return f"{label}: {len(done)}/{len(scored)} 已完成，跳过 {len(scored) - total} 个"
+        return f"{label}: {len(done)}/{total} 已完成"
 
     def run(self, session):
         daily_cards, more_cards, dashboard, earn = self._boards(session)
