@@ -71,6 +71,7 @@
 | 🟤   | MIMOTION  | 小米运动                                                   | 25.09.28 | 每日小米运动刷步数                                                           |
 | 🟢️  | BAIDU     | [百度站点](https://ziyuan.baidu.com/site/index#/)          | 25.09.28 | 提交网站页面供百度收录                                                       |
 | 🟢   | BING      | [Microsoft Rewards](https://rewards.bing.com/)             | 26.10.22 | 每日活动、更多活动、电脑搜索，并做 Edge 阅读和移动签到                                 |
+| 🟢   | NEWORLD   | [新界](https://neworld.cloud/user)                         | 26.10.30 | 登录后每日签到领取流量。站点不长期保留 Cookie，每次用邮箱和密码重新登录               |
 
 ## 💬 通知列表
 

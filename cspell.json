@@ -19,6 +19,8 @@
         "KGQQ",
         "KHTML",
         "MIMOTION",
+        "NEWORLD",
+        "neworld",
         "MSPAuth",
         "MSPProf",
         "offerid",
@@ -31,6 +33,7 @@
         "sessdata",
         "SMZDM",
         "TIEBA",
+        "totp",
         "userinfo",
         "venv",
         "YOUDAO"

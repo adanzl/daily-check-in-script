@@ -1,0 +1,33 @@
+import CardList from '../../components/CardList'
+
+<CardList />
+
+# 新界
+
+登录 [新界用户中心](https://neworld.cloud/user) 后签到领取流量。这个站点的登录态留不久，而且和浏览器指纹绑在一起，复制 Cookie 经常失效。任务每次用邮箱和密码重新登录，再请求签到。
+
+### 配置示例
+
+```json filename="config.json" copy
+{
+  "NEWORLD": [
+    {
+      "email": "name@example.com",
+      "password": "xxxxxx",
+      "totp": "",
+      "checkin_type": "traffic"
+    }
+  ]
+}
+```
+
+### 配置说明
+
+| 参数 | 说明 |
+| --- | --- |
+| _**NEWORLD**_.email | 注册邮箱 |
+| _**NEWORLD**_.password | 登录密码 |
+| _**NEWORLD**_.totp | 两步验证码。没开就留空。这是当次的 6 位数字，不是长期密钥 |
+| _**NEWORLD**_.checkin_type | `traffic` 领取流量，`time` 领取时长。不填默认 `traffic` |
+
+当天已经签过会返回「今天已经签到过了」，并尽量带上剩余流量。
