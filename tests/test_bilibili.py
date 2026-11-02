@@ -69,7 +69,7 @@ def test_live_status_handles_null_data():
     assert names == {"硬币数量": 0, "金瓜子数": 0, "银瓜子数": 0}
 
 
-# ------------------------------------------------------------ 漫画 / 直播签到
+# ------------------------------------------------------------------- 漫画签到
 def test_manga_sign_chinese_duplicate_is_not_failure():
     BiliBili = _bilibili()
     msg = BiliBili.manga_sign(FakeSession({"ClockIn": {"code": 75000, "msg": "不能重复签到~"}}))
@@ -83,17 +83,92 @@ def test_manga_sign_real_error_still_reports_failure():
     assert "失败" in msg
 
 
-def test_live_sign_offline_activity_is_not_failure():
+# --------------------------------------------------------- 自己账号的最新视频
+def test_latest_own_video_picks_newest_by_ptime():
     BiliBili = _bilibili()
-    msg = BiliBili.live_sign(FakeSession({"DoSign": {"code": 1, "message": "签到活动已下线，无法使用"}}))
-    assert "已下线" in msg
-    assert "失败" not in msg
+    session = FakeSession(
+        {
+            "web/archives": {
+                "code": 0,
+                "data": {
+                    "arc_audits": [
+                        {"Archive": {"aid": 11, "title": "旧视频", "ptime": 100}},
+                        {"Archive": {"aid": 22, "title": "最新投稿", "ptime": 200}},
+                    ]
+                },
+            }
+        }
+    )
+    ret = BiliBili.latest_own_video(session)
+    assert ret["code"] == 0
+    assert ret["aid"] == 22
+    assert ret["title"] == "最新投稿"
 
 
-def test_live_sign_success():
+def test_latest_own_video_empty_is_not_api_failure():
     BiliBili = _bilibili()
-    session = FakeSession({"DoSign": {"code": 0, "data": {"text": "3经验", "specialText": "", "hadSignDays": 5}}})
-    assert "签到成功" in BiliBili.live_sign(session)
+    ret = BiliBili.latest_own_video(FakeSession({"web/archives": {"code": 0, "data": {"arc_audits": []}}}))
+    assert ret["code"] != 0
+    assert ret["empty"] is True
+    assert "没有已发布的视频" in ret["message"]
+    assert "失败" not in ret["message"]
+
+
+def test_share_video_falls_back_when_own_account_empty():
+    BiliBili = _bilibili()
+    session = FakeSession(
+        {
+            "web/archives": {"code": 0, "data": {"arc_audits": []}},
+            "medialist/resource/list": {
+                "code": 0,
+                "data": {
+                    "media_list": [
+                        {"id": 1, "title": "旧的", "pubtime": 10},
+                        {"id": 2, "title": "兜底最新", "pubtime": 20},
+                    ]
+                },
+            },
+        }
+    )
+    ret = BiliBili.video_for_share(session)
+    assert ret["code"] == 0
+    assert ret["aid"] == 2
+    assert ret["title"] == "兜底最新"
+
+
+def test_share_video_does_not_fallback_when_own_request_fails():
+    BiliBili = _bilibili()
+    session = FakeSession(
+        {
+            "web/archives": {"code": -352, "message": "风控校验失败"},
+            "medialist/resource/list": {
+                "code": 0,
+                "data": {"media_list": [{"id": 2, "title": "兜底最新", "pubtime": 20}]},
+            },
+        }
+    )
+    ret = BiliBili.video_for_share(session)
+    assert ret["code"] != 0
+    assert "获取自己的视频失败" in ret["message"]
+
+
+def test_share_video_keeps_own_when_present():
+    BiliBili = _bilibili()
+    session = FakeSession(
+        {
+            "web/archives": {
+                "code": 0,
+                "data": {"arc_audits": [{"Archive": {"aid": 22, "title": "自己的", "ptime": 200}}]},
+            },
+            "medialist/resource/list": {
+                "code": 0,
+                "data": {"media_list": [{"id": 2, "title": "兜底最新", "pubtime": 20}]},
+            },
+        }
+    )
+    ret = BiliBili.video_for_share(session)
+    assert ret["aid"] == 22
+    assert ret["title"] == "自己的"
 
 
 # ------------------------------------------------------------------- 分享任务
@@ -162,7 +237,15 @@ def _happy_router():
             },
         },
         "ClockIn": {"code": 75000, "msg": "不能重复签到~"},
-        "DoSign": {"code": 0, "data": {"text": "3经验", "specialText": "", "hadSignDays": 5}},
+        "web/archives": {
+            "code": 0,
+            "data": {
+                "arc_audits": [
+                    {"Archive": {"aid": 11, "title": "旧视频", "ptime": 100}},
+                    {"Archive": {"aid": 22, "title": "最新投稿", "ptime": 200}},
+                ]
+            },
+        },
         # ranking/v2 被风控 -> 应回落到 popular
         "ranking/v2": {"code": -352, "message": "风控校验失败"},
         "web-interface/popular": {
@@ -201,7 +284,9 @@ def test_main_flow_caps_level_and_falls_back():
         requests.session = original
 
     assert "已封顶(Lv6)" in out, out
-    assert "分享《测试视频》（今日已分享过）" in out, out
+    assert "直播签到" not in out, out
+    assert "分享《最新投稿》（今日已分享过）" in out, out
+    assert "测试视频" not in out, out
     assert "已关闭（watch_video=false" in out, out
     assert "硬币数量: 0" in out, out
 
@@ -220,7 +305,28 @@ def test_main_flow_empty_aid_list_does_not_crash():
     finally:
         requests.session = original
 
-    assert "已跳过（没拿到视频列表）" in out, out
+    assert "观看视频: 已跳过（没拿到视频列表）" in out, out
+    assert "分享《最新投稿》（今日已分享过）" in out, out
+
+
+def test_main_flow_shares_fallback_user_when_own_empty():
+    import requests
+
+    BiliBili = _bilibili()
+    router = _happy_router()
+    router["web/archives"] = {"code": 0, "data": {"arc_audits": []}}
+    router["medialist/resource/list"] = {
+        "code": 0,
+        "data": {"media_list": [{"id": 99, "title": "兜底最新", "pubtime": 20}]},
+    }
+    original = requests.session
+    _patch_session(requests, router)
+    try:
+        out = BiliBili({"cookie": "SESSDATA=x; bili_jct=y", "coin_num": 0}).main()
+    finally:
+        requests.session = original
+
+    assert "分享《兜底最新》（今日已分享过）" in out, out
 
 
 def test_main_flow_raises_on_expired_cookie():

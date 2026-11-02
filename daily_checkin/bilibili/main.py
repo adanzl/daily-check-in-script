@@ -9,6 +9,8 @@ from daily_checkin import CheckIn
 
 class BiliBili(CheckIn):
     name = "Bilibili"
+    # 自己账号没有已发布视频时，用这个用户的最新投稿做每日分享
+    share_fallback_mid = 2490859
 
     def __init__(self, check_item: dict):
         self.check_item = check_item
@@ -76,42 +78,6 @@ class BiliBili(CheckIn):
     def reward(session) -> dict:
         """取B站经验信息（今日明细，与 get_today_exp 同源）"""
         return BiliBili._exp_log_list(session)
-
-    @staticmethod
-    def live_sign(session) -> dict:
-        """B站直播签到
-
-        B站已经下线直播签到活动（DoSign 恒返回 `code=1 / 签到活动已下线，无法使用`），
-        这不是脚本的问题，也不该显示成「签到失败」。这里单独标出来。
-        """
-        # 活动下线 / 不可用的返回特征
-        offline_markers = ("已下线", "无法使用", "活动已结束")
-        try:
-            url = "https://api.live.bilibili.com/xlive/web-ucenter/v1/sign/DoSign"
-            ret = session.get(url=url, timeout=15).json()
-            if not isinstance(ret, dict):
-                msg = f"签到异常，原因为: 响应不是 JSON 对象({type(ret).__name__})"
-                print(msg)
-                return msg
-            code = ret.get("code")
-            text = str(ret.get("message") or ret.get("msg") or "")
-            if code == 0:
-                data = ret.get("data") or {}
-                msg = (
-                    f"签到成功，{data.get('text')}，特别信息:{data.get('specialText')}，"
-                    f"本月已签到{data.get('hadSignDays')}天"
-                )
-            elif code == 1011040 or "已签到" in text:
-                msg = "今日已签到过,无法重复签到"
-            elif any(marker in text for marker in offline_markers):
-                # 平台下线该活动，不是失败
-                msg = f"活动已下线，无需签到({text})"
-            else:
-                msg = f"签到失败，信息为: {text}"
-        except Exception as e:
-            msg = f"签到异常，原因为{e!s}"
-            print(msg)
-        return msg
 
     @staticmethod
     def manga_sign(session, platform="android") -> dict:
@@ -221,6 +187,107 @@ class BiliBili(CheckIn):
             # 今天已经分享过了，等价于成功
             return {"code": 0, "message": "今日已分享过", "duplicate": True}
         return ret
+
+    @staticmethod
+    def latest_own_video(session) -> dict:
+        """取当前登录账号已通过审核的最新投稿，供每日分享使用。
+
+        创作中心稿件列表按投稿时间倒序。这里再按 ptime 取最大的一条，
+        避免接口没按预期排序时分到旧视频。
+        """
+        url = "https://member.bilibili.com/x/web/archives"
+        params = {
+            "status": "pubed",
+            "pn": 1,
+            "ps": 20,
+            "coop": 1,
+            "interactive": 1,
+            "order": "senddate",
+        }
+        try:
+            ret = session.get(
+                url=url,
+                params=params,
+                timeout=15,
+                headers={"Referer": "https://member.bilibili.com/platform/upload-manager/article"},
+            ).json()
+        except Exception as exc:
+            return {"code": -1, "message": f"获取自己的视频失败({type(exc).__name__})"}
+        if not isinstance(ret, dict):
+            return {"code": -1, "message": "获取自己的视频失败(响应不是 JSON 对象)"}
+        if ret.get("code") != 0:
+            text = ret.get("message") or ret.get("msg") or "未知错误"
+            return {"code": ret.get("code", -1), "message": f"获取自己的视频失败({text})"}
+        audits = (ret.get("data") or {}).get("arc_audits") or []
+        picked = None
+        picked_time = -1
+        for one in audits:
+            if not isinstance(one, dict):
+                continue
+            archive = one.get("Archive") or one.get("archive") or {}
+            if not isinstance(archive, dict):
+                continue
+            aid = archive.get("aid")
+            if not aid:
+                continue
+            raw_time = archive.get("ptime") or archive.get("ctime") or 0
+            try:
+                ptime = int(raw_time)
+            except (TypeError, ValueError):
+                ptime = 0
+            if picked is None or ptime >= picked_time:
+                picked_time = ptime
+                picked = {"aid": aid, "title": archive.get("title") or str(aid)}
+        if not picked:
+            return {"code": -1, "message": "自己账号下没有已发布的视频", "empty": True}
+        return {"code": 0, "aid": picked["aid"], "title": picked["title"]}
+
+    @staticmethod
+    def latest_space_video(session, mid: int) -> dict:
+        """取指定用户空间里发布时间最新的一条投稿。"""
+        url = "https://api.bilibili.com/x/v2/medialist/resource/list"
+        params = {"type": 1, "biz_id": mid, "ps": 20, "pn": 1}
+        try:
+            ret = session.get(
+                url=url,
+                params=params,
+                timeout=15,
+                headers={"Referer": f"https://space.bilibili.com/{mid}/video"},
+            ).json()
+        except Exception as exc:
+            return {"code": -1, "message": f"获取用户 {mid} 的视频失败({type(exc).__name__})"}
+        if not isinstance(ret, dict):
+            return {"code": -1, "message": f"获取用户 {mid} 的视频失败(响应不是 JSON 对象)"}
+        if ret.get("code") != 0:
+            text = ret.get("message") or ret.get("msg") or "未知错误"
+            return {"code": ret.get("code", -1), "message": f"获取用户 {mid} 的视频失败({text})"}
+        items = (ret.get("data") or {}).get("media_list") or []
+        picked = None
+        picked_time = -1
+        for one in items:
+            if not isinstance(one, dict):
+                continue
+            aid = one.get("id")
+            if not aid:
+                continue
+            try:
+                pubtime = int(one.get("pubtime") or 0)
+            except (TypeError, ValueError):
+                pubtime = 0
+            if picked is None or pubtime > picked_time:
+                picked_time = pubtime
+                picked = {"aid": aid, "title": one.get("title") or str(aid)}
+        if not picked:
+            return {"code": -1, "message": f"用户 {mid} 没有可分享的视频"}
+        return {"code": 0, "aid": picked["aid"], "title": picked["title"]}
+
+    @staticmethod
+    def video_for_share(session) -> dict:
+        """分享目标：优先自己的最新投稿，没有则用固定用户的最新投稿。"""
+        own = BiliBili.latest_own_video(session)
+        if own.get("code") == 0 or not own.get("empty"):
+            return own
+        return BiliBili.latest_space_video(session, BiliBili.share_fallback_mid)
 
     @staticmethod
     def get_followings(
@@ -461,7 +528,6 @@ class BiliBili(CheckIn):
             # 就打 ✅，于是过期 Cookie 也会报「签到成功」。必须抛出才会显示 ❌。
             raise RuntimeError("B站登录态失效（SESSDATA 过期或被风控），请重新获取 Cookie")
         manhua_msg = self.manga_sign(session=session)
-        live_msg = self.live_sign(session=session)
         aid_list = self.get_region(session=session)
         vip_privilege_my_ret = self.vip_privilege_my(session=session)
         welfare_list = (vip_privilege_my_ret.get("data") or {}).get("list") or []
@@ -519,7 +585,6 @@ class BiliBili(CheckIn):
         if not aid_list:
             # 所有分区接口都没拿到视频（风控/接口再变），兜底而不是崩
             report_msg = "已跳过（没拿到视频列表）"
-            share_msg = "已跳过（没拿到视频列表）"
         else:
             aid = aid_list[0].get("aid")
             cid = aid_list[0].get("cid")
@@ -533,7 +598,15 @@ class BiliBili(CheckIn):
                 report_msg = f"观看《{title}》300秒"
             else:
                 report_msg = f"任务失败({report_ret.get('message')})"
-            share_ret = self.share_task(session=session, bili_jct=bili_jct, aid=aid)
+        own_video = self.video_for_share(session=session)
+        if own_video.get("code") != 0:
+            share_msg = own_video.get("message") or "获取自己的视频失败"
+            print(share_msg)
+        else:
+            title = own_video.get("title")
+            share_ret = self.share_task(session=session, bili_jct=bili_jct, aid=own_video.get("aid"))
+            if not isinstance(share_ret, dict):
+                share_ret = {}
             if share_ret.get("code") == 0:
                 if share_ret.get("duplicate"):
                     share_msg = f"分享《{title}》（今日已分享过）"
@@ -565,7 +638,6 @@ class BiliBili(CheckIn):
         msg = [
             {"name": "帐号信息", "value": uname},
             {"name": "漫画签到", "value": manhua_msg},
-            {"name": "直播签到", "value": live_msg},
             {"name": "登陆任务", "value": "今日已登陆"},
             {"name": "观看视频", "value": report_msg},
             {"name": "分享任务", "value": share_msg},
