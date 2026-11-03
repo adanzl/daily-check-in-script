@@ -510,6 +510,8 @@ class BiliBili(CheckIn):
         silver2coin = self.check_item.get("silver2coin", False)
         # 观看视频 300 秒：默认关闭，因为它会往「观看历史」写记录
         watch_video = self.check_item.get("watch_video", False)
+        # 分享任务：默认关闭。网页分享接口常被风控（-403），Lv6 封顶后也没有升级收益
+        share_video = self.check_item.get("share_video", False)
         session = requests.session()
         requests.utils.add_dict_to_cookiejar(session.cookies, bilibili_cookie)
         session.headers.update(
@@ -598,23 +600,26 @@ class BiliBili(CheckIn):
                 report_msg = f"观看《{title}》300秒"
             else:
                 report_msg = f"任务失败({report_ret.get('message')})"
-        own_video = self.video_for_share(session=session)
-        if own_video.get("code") != 0:
-            share_msg = own_video.get("message") or "获取自己的视频失败"
-            print(share_msg)
+        if not share_video:
+            share_msg = "已关闭（share_video=false）"
         else:
-            title = own_video.get("title")
-            share_ret = self.share_task(session=session, bili_jct=bili_jct, aid=own_video.get("aid"))
-            if not isinstance(share_ret, dict):
-                share_ret = {}
-            if share_ret.get("code") == 0:
-                if share_ret.get("duplicate"):
-                    share_msg = f"分享《{title}》（今日已分享过）"
-                else:
-                    share_msg = f"分享《{title}》成功"
-            else:
-                share_msg = share_ret.get("message") or "分享失败"
+            own_video = self.video_for_share(session=session)
+            if own_video.get("code") != 0:
+                share_msg = own_video.get("message") or "获取自己的视频失败"
                 print(share_msg)
+            else:
+                title = own_video.get("title")
+                share_ret = self.share_task(session=session, bili_jct=bili_jct, aid=own_video.get("aid"))
+                if not isinstance(share_ret, dict):
+                    share_ret = {}
+                if share_ret.get("code") == 0:
+                    if share_ret.get("duplicate"):
+                        share_msg = f"分享《{title}》（今日已分享过）"
+                    else:
+                        share_msg = f"分享《{title}》成功"
+                else:
+                    share_msg = share_ret.get("message") or "分享失败"
+                    print(share_msg)
         s2c_msg = "不兑换硬币"
         if silver2coin:
             silver2coin_ret = self.silver2coin(session=session, bili_jct=bili_jct) or {}

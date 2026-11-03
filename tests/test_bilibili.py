@@ -285,8 +285,8 @@ def test_main_flow_caps_level_and_falls_back():
 
     assert "已封顶(Lv6)" in out, out
     assert "直播签到" not in out, out
-    assert "分享《最新投稿》（今日已分享过）" in out, out
-    assert "测试视频" not in out, out
+    assert "已关闭（share_video=false）" in out, out
+    assert "分享《" not in out, out
     assert "已关闭（watch_video=false" in out, out
     assert "硬币数量: 0" in out, out
 
@@ -306,6 +306,20 @@ def test_main_flow_empty_aid_list_does_not_crash():
         requests.session = original
 
     assert "观看视频: 已跳过（没拿到视频列表）" in out, out
+    assert "已关闭（share_video=false）" in out, out
+
+
+def test_main_flow_shares_when_enabled():
+    import requests
+
+    BiliBili = _bilibili()
+    original = requests.session
+    _patch_session(requests, _happy_router())
+    try:
+        out = BiliBili({"cookie": "SESSDATA=x; bili_jct=y", "coin_num": 0, "share_video": True}).main()
+    finally:
+        requests.session = original
+
     assert "分享《最新投稿》（今日已分享过）" in out, out
 
 
@@ -322,7 +336,7 @@ def test_main_flow_shares_fallback_user_when_own_empty():
     original = requests.session
     _patch_session(requests, router)
     try:
-        out = BiliBili({"cookie": "SESSDATA=x; bili_jct=y", "coin_num": 0}).main()
+        out = BiliBili({"cookie": "SESSDATA=x; bili_jct=y", "coin_num": 0, "share_video": True}).main()
     finally:
         requests.session = original
 

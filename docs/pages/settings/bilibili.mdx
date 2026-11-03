@@ -16,14 +16,16 @@ import CardList from '../../components/CardList'
       "coin_num": 0,
       "coin_type": 1,
       "silver2coin": true,
-      "watch_video": false
+      "watch_video": false,
+      "share_video": false
     },
     {
       "cookie": "多账号 cookie 填写，请参考上面，cookie 以实际获取为准（遇到特殊字符如双引号\" 请加反斜杠转义）",
       "coin_num": 0,
       "coin_type": 1,
       "silver2coin": true,
-      "watch_video": false
+      "watch_video": false,
+      "share_video": false
     }
   ]
 }
@@ -38,8 +40,9 @@ import CardList from '../../components/CardList'
 |  _**BILIBILI**_.coin_type  | Bilibili 投币方式 默认为 0 ；1: 为关注用户列表视频投币 0: 为随机投币。如果关注用户发布的视频不足配置的投币数，则剩余部分使用随机投币 |
 | _**BILIBILI**_.silver2coin |                                           Bilibili 是否开启银瓜子换硬币，默认为 True 开启                                            |
 | _**BILIBILI**_.watch_video |              Bilibili 是否开启「观看视频 300 秒」任务，默认为 False 关闭。该任务会往「观看历史」写一条记录，经验在 Lv6 封顶后没有收益却会污染历史，因此默认不执行               |
+| _**BILIBILI**_.share_video |              Bilibili 是否开启每日分享任务，默认为 False 关闭。网页分享接口常被风控返回「账号异常,操作失败」；账号已 Lv6 封顶时也没有升级收益，因此默认不执行               |
 
-直播签到活动已下线，脚本不再请求。每日分享取当前登录账号创作中心里已通过审核的最新投稿；自己没有投稿时，改为分享用户 2490859 的最新视频。
+直播签到活动已下线，脚本不再请求。开启 `share_video` 后，每日分享取当前登录账号创作中心里已通过审核的最新投稿；自己没有投稿时，改为分享用户 2490859 的最新视频。
 
 ## 获取方式
 

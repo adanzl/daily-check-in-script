@@ -58,7 +58,7 @@
 | 🟢️  | YOUDAO    | [有道云笔记](https://note.youdao.com/web/)                 | 25.09.28 | 每日签到获取存储空间                                                         |
 | 🟢️  | TIEBA     | [百度贴吧](https://tieba.baidu.com/index.html)             | 25.09.28 | 贴吧每日签到                                                                 |
 | 🟢️  | BAIDUWP   | [百度网盘](https://pan.baidu.com/wap/svip/growth/task)     | 25.09.28 | 百度网盘会员签到和答题功能                                                   |
-| 🟢️  | BILIBILI  | [BiliBili](https://www.bilibili.com/)                      | 26.11.02 | 漫画签到，分享自己最新投稿，没有则分享指定用户最新视频，每日经验与投币       |
+| 🟢️  | BILIBILI  | [BiliBili](https://www.bilibili.com/)                      | 26.11.03 | 漫画签到，每日经验与投币；分享默认关闭，可按配置开启                         |
 | 🟢️  | V2EX      | [V2EX](https://www.v2ex.com/)                              | 25.09.28 | 铜币奖励                                                                     |
 | 🟢️  | ACFUN     | [AcFun](https://www.acfun.cn/)                             | 25.09.28 | 每日签到香蕉                                                                 |
 | 🟢️  | IQIYI     | [爱奇艺](https://www.iqiyi.com/)                           | 25.09.28 | ① VIP7 每月免费领白金会员；② 抽白金会员 5 次；③ 摇一摇抽奖 3 次；④ 抽奖 3 次 |
